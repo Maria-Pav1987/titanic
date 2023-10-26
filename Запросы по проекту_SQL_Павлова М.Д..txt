@@ -1,0 +1,101 @@
+1. 
+-- Подсчитаем общее количество и общий процент выживших от общего числа пассажиров 
+--(независимо от пола, возраста и уровня материального благополучия (класса обслуживания)):
+
+SELECT
+	SUM(survived) AS surv_passenger,
+	COUNT(*) AS total_passenger,
+    	SUM(survived) * 100 / COUNT(*) AS surv_percent
+FROM titanic_table tt
+-- Выжившие обозначены в атрибуте "survived" как 1, погибшие как 0. Соответственно, сумма выживших - сумма всех значений атрибута "survived".
+
+
+2.
+-- Подсчитаем количество выживших, в зависимости от пола и класса обслуживания:
+SELECT
+	sex,
+	pclass,
+	SUM(survived) * 100 / COUNT(*) AS surv_percent
+FROM titanic_table
+GROUP BY sex, pclass 
+
+
+3.
+-- Выясним, как возраст пассажиров повлиял на их выживаемость.
+-- Для этого создадим доп/атрибут "generation", указав в нем категории пассажиров в зависимости от диапазона их возрастов:
+-- 0-12 как "minor", 
+-- 13-19 как "teenager",
+-- 20-30 как "young_man",
+-- 31-50 как "adults", 
+-- свыше 50 как "aged".
+
+SELECT
+	sex,
+	pclass,
+   	SUM(survived) * 100 / COUNT(*) AS surv_percent,
+    	CASE
+        	WHEN age BETWEEN 0 AND 12 THEN 'minor(0-12)'
+        	WHEN age BETWEEN 13 AND 19 THEN 'teenager(13-19)'
+        	WHEN age BETWEEN 20 AND 30 THEN 'young_man(20-30)'
+        	WHEN age BETWEEN 31 AND 50 THEN 'adult(31-50)'
+        	ELSE 'aged'
+    		END AS generation    
+FROM
+    titanic_table tt
+GROUP BY pclass, generation
+
+
+4. -- Посчитаем количество выживших, в зависимости от наличия членов семьи на борту
+
+SELECT
+    family_member,
+    SUM(survived) * 100 / COUNT(*) AS surv_rate,
+    CASE
+        	WHEN family_member = 0 THEN 'without_family'
+        	ELSE 'with_family'
+    		END AS family_status  
+FROM (
+    SELECT
+        (siblings_spouses_aboard + parents_children_aboard) AS family_member,
+        survived
+    FROM
+        titanic_table tt 
+) 
+GROUP BY family_status
+
+4.1. -- Затем посчитаем, как количество членов семьи на борту влияло на выживаемость
+-- (с указанием справа абсолютных значений выживших пассажиров (absolute_number_surv) и их общего числа (включая погибших) - total_number_pass:
+
+SELECT
+    family_member,
+    SUM(survived) * 100 / COUNT(*) AS surv_rate,
+    CASE
+        	WHEN family_member = 0 THEN 'without_family'
+        	ELSE 'with_family'
+    		END AS family_status,
+    SUM(survived) AS absol_number_surv,
+    count(*) AS total_number_pass
+FROM (
+    SELECT
+        (siblings_spouses_aboard + parents_children_aboard) AS family_member,
+        survived
+    FROM
+        titanic_table tt 
+) 
+GROUP BY family_member
+
+4.2. -- Затем посчитаем, какие именно категории членов семьи на борту влияли на выживаемость
+
+SELECT
+    CASE
+        WHEN siblings_spouses_aboard > 0 THEN 'with_siblings_spouses'
+        WHEN parents_children_aboard > 0 THEN 'with parents_Children'
+        ELSE 'alone'
+    END AS family_status,
+    SUM(survived) * 100 / COUNT(*) AS surv_percent
+FROM
+    titanic_table tt 
+GROUP BY
+    family_status
+ORDER BY
+    surv_percent DESC;
